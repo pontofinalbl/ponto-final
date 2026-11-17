@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Pedidos (KDS) - Ponto Final</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b0d11;
+            color: #f3f4f6;
+        }
+        @keyframes pulseBorder {
+            0%, 100% { border-color: rgba(245, 158, 11, 0.85); box-shadow: 0 0 18px rgba(245, 158, 11, 0.18); }
+            50% { border-color: rgba(245, 158, 11, 0.25); box-shadow: 0 0 4px rgba(245, 158, 11, 0.05); }
+        }
+        .new-order-pulse {
+            animation: pulseBorder 2s infinite;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .card-animate {
+            animation: slideIn 0.22s ease-out forwards;
+        }
+        /* Estilos exclusivos para impressão de comanda térmica (58mm/80mm) */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #print-area, #print-area * {
+                visibility: visible;
+            }
+            #print-area {
+                position: fixed;
+                left: 0;
+                top: 0;
+                width: 100%;
+                max-width: 80mm;
+                background: #fff !important;
+                color: #000 !important;
+                padding: 8px;
+                font-family: 'Courier New', monospace;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Área Oculta para Impressão de Comanda -->
+    <div id="print-area" class="hidden print:block"></div>
+
+    <!-- Toast Flutuante -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Cabeçalho Principal -->
+    <header class="bg-[#14171f] border-b border-[#262b36] sticky top-0 z-30 shadow-xl">
+        <div class="max-w-7xl mx-auto px-4 py-3.5 flex flex-wrap items-center justify-between gap-3">
+            <!-- Identidade -->
+            <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-orange-600/20 shrink-0">
+                    <i data-lucide="chef-hat" class="w-6 h-6 text-stone-950"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-lg sm:text-xl font-extrabold text-white tracking-tight">Ponto Final • KDS</h1>
+                        <span id="connection-badge" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            Local Ativo
+                        </span>
+                    </div>
+                    <p class="text-xs text-gray-400">Monitor de Pedidos em Tempo Real • Cozinha & Balcão</p>
+                </div>
+            </div>
+
+            <!-- Controles e Ações -->
+            <div class="flex flex-wrap items-center gap-2">
+                <!-- Toggle de Som -->
+                <button id="sound-toggle-btn" onclick="toggleSound()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1e222d] hover:bg-[#272c3a] text-amber-400 border border-[#2f3545] text-xs font-bold transition" title="Ativar/Desativar alerta sonoro">
+                    <i id="sound-icon" data-lucide="volume-2" class="w-4 h-4"></i>
+                    <span id="sound-label" class="hidden sm:inline">Som Ativo</span>
+                </button>
+
+                <!-- Conectar Nuvem (Firebase) -->
+                <button onclick="openCloudModal()" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/30 text-xs font-bold transition">
+                    <i data-lucide="cloud" class="w-4 h-4"></i>
+                    <span>Conectar Nuvem (Firebase)</span>
+                </button>
+
+                <!-- Pedido Teste -->
+                <button onclick="createTestOrder()" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-extrabold transition shadow-md shadow-amber-500/15">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    <span>+ Pedido Teste</span>
+                </button>
+
+                <!-- Limpar Concluídos -->
+                <button onclick="openClearDoneModal()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1e222d] hover:bg-red-950/60 text-gray-300 hover:text-red-300 border border-[#2f3545] hover:border-red-800/50 text-xs font-bold transition" title="Limpar pedidos prontos/entregues">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    <span class="hidden md:inline">Limpar Prontos</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Barra de Resumo Financeiro do Turno -->
+        <div class="bg-[#10131a] border-t border-[#202530]">
+            <div class="max-w-7xl mx-auto px-4 py-2.5 grid grid-cols-3 gap-2 sm:gap-4">
+                <div class="bg-[#161a23] border border-[#262b36] rounded-xl px-3.5 py-2 flex items-center justify-between">
+                    <div>
+                        <span class="block text-[11px] uppercase tracking-wider text-gray-400 font-semibold">Pedidos Hoje</span>
+                        <span id="stat-count" class="text-base sm:text-xl font-extrabold text-white">0</span>
+                    </div>
+                    <div class="p-2 rounded-lg bg-amber-500/10 text-amber-400 hidden sm:block">
+                        <i data-lucide="receipt" class="w-5 h-5"></i>
+                    </div>
+                </div>
+
+                <div class="bg-[#161a23] border border-[#262b36] rounded-xl px-3.5 py-2 flex items-center justify-between">
+                    <div>
+                        <span class="block text-[11px] uppercase tracking-wider text-gray-400 font-semibold">Faturamento</span>
+                        <span id="stat-revenue" class="text-base sm:text-xl font-extrabold text-emerald-400">R$ 0,00</span>
+                    </div>
+                    <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 hidden sm:block">
+                        <i data-lucide="banknote" class="w-5 h-5"></i>
+                    </div>
+                </div>
+
+                <div class="bg-[#161a23] border border-[#262b36] rounded-xl px-3.5 py-2 flex items-center justify-between">
+                    <div>
+                        <span class="block text-[11px] uppercase tracking-wider text-gray-400 font-semibold">Ticket Médio</span>
+                        <span id="stat-ticket" class="text-base sm:text-xl font-extrabold text-sky-400">R$ 0,00</span>
+                    </div>
+                    <div class="p-2 rounded-lg bg-sky-500/10 text-sky-400 hidden sm:block">
+                        <i data-lucide="trending-up" class="w-5 h-5"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Quadro KDS (3 Colunas) -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-5">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+
+            <!-- COLUNA 1: NOVOS / PENDENTES -->
+            <section class="bg-[#14171f] rounded-2xl border border-[#262b36] flex flex-col min-h-[420px]">
+                <div class="p-4 border-b border-[#262b36] flex items-center justify-between bg-amber-500/5 rounded-t-2xl">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-3 h-3 rounded-full bg-amber-500 animate-ping"></span>
+                        <h2 class="font-extrabold text-amber-400 text-sm sm:text-base uppercase tracking-wide">Novos / Pendentes</h2>
+                    </div>
+                    <span id="count-pending" class="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-amber-500 text-stone-950">0</span>
+                </div>
+                <div id="col-pending" class="p-3.5 space-y-3.5 flex-1">
+                    <!-- Cards renderizados via JS -->
+                </div>
+            </section>
+
+            <!-- COLUNA 2: EM PREPARO -->
+            <section class="bg-[#14171f] rounded-2xl border border-[#262b36] flex flex-col min-h-[420px]">
+                <div class="p-4 border-b border-[#262b36] flex items-center justify-between bg-sky-500/5 rounded-t-2xl">
+                    <div class="flex items-center gap-2.5">
+                        <i data-lucide="flame" class="w-4 h-4 text-sky-400"></i>
+                        <h2 class="font-extrabold text-sky-400 text-sm sm:text-base uppercase tracking-wide">Em Preparo</h2>
+                    </div>
+                    <span id="count-preparing" class="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-sky-500 text-stone-950">0</span>
+                </div>
+                <div id="col-preparing" class="p-3.5 space-y-3.5 flex-1">
+                    <!-- Cards renderizados via JS -->
+                </div>
+            </section>
+
+            <!-- COLUNA 3: PRONTOS / ENTREGUES -->
+            <section class="bg-[#14171f] rounded-2xl border border-[#262b36] flex flex-col min-h-[420px]">
+                <div class="p-4 border-b border-[#262b36] flex items-center justify-between bg-emerald-500/5 rounded-t-2xl">
+                    <div class="flex items-center gap-2.5">
+                        <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i>
+                        <h2 class="font-extrabold text-emerald-400 text-sm sm:text-base uppercase tracking-wide">Prontos / Entregues</h2>
+                    </div>
+                    <span id="count-done" class="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-emerald-500 text-stone-950">0</span>
+                </div>
+                <div id="col-done" class="p-3.5 space-y-3.5 flex-1">
+                    <!-- Cards renderizados via JS -->
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- MODAL: Configurar Nuvem (Firebase Realtime Database) -->
+    <div id="cloud-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[#181c26] rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-[#2d3342]">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2.5">
+                    <div class="p-2 rounded-xl bg-sky-500/15 text-sky-400">
+                        <i data-lucide="cloud" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-extrabold text-white">Sincronização em Nuvem (Firebase)</h2>
+                        <p class="text-xs text-gray-400">Ligue o cardápio do celular ao painel da cozinha</p>
+                    </div>
+                </div>
+                <button onclick="closeCloudModal()" class="p-2 rounded-full hover:bg-[#252a38] text-gray-400">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="bg-[#11141c] border border-[#262b36] rounded-2xl p-3.5 text-xs text-gray-300 space-y-1.5 mb-4">
+                <p class="font-bold text-sky-300">Como funciona:</p>
+                <p>1. Crie um banco gratuito no <strong>Firebase Realtime Database</strong> (modo teste).</p>
+                <p>2. Cole a URL do banco abaixo (ex: <code class="text-amber-300">https://ponto-final-default-rtdb.firebaseio.com</code>).</p>
+                <p>3. Cole a mesma URL na configuração do Cardápio Digital para receber pedidos de qualquer celular em tempo real.</p>
+            </div>
+
+            <form onsubmit="saveFirebaseConfig(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">URL do Firebase Realtime Database</label>
+                    <input type="url" id="firebase-url-input" placeholder="https://seu-projeto-default-rtdb.firebaseio.com" class="w-full px-3.5 py-2.5 rounded-xl bg-[#10131a] border border-[#2d3342] focus:border-sky-500 text-white text-sm outline-none">
+                </div>
+
+                <div class="flex flex-wrap items-center justify-between gap-2 pt-2">
+                    <button type="button" onclick="disconnectFirebase()" class="px-3.5 py-2 rounded-xl text-xs font-bold text-red-300 bg-red-950/50 hover:bg-red-900/60 border border-red-900/50">
+                        Desconectar Nuvem
+                    </button>
+                    <div class="flex items-center gap-2 ml-auto">
+                        <button type="button" onclick="closeCloudModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-gray-300 hover:bg-[#252a38]">Cancelar</button>
+                        <button type="submit" class="px-5 py-2.5 rounded-xl text-xs font-extrabold bg-sky-500 hover:bg-sky-400 text-stone-950 transition">
+                            Salvar & Conectar
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Confirmar Ação -->
+    <div id="confirm-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[#181c26] rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-[#2d3342] text-center">
+            <div class="w-12 h-12 rounded-full bg-red-500/15 text-red-400 flex items-center justify-center mx-auto mb-3 border border-red-500/30">
+                <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+            </div>
+            <h3 id="confirm-title" class="text-lg font-extrabold text-white">Confirmar</h3>
+            <p id="confirm-msg" class="text-xs text-gray-400 mt-1">Deseja continuar?</p>
+            <div class="mt-5 flex gap-2.5">
+                <button onclick="closeConfirmModal()" class="flex-1 py-2.5 rounded-xl text-xs font-bold bg-[#252a38] text-gray-300 hover:bg-[#2f3546]">Cancelar</button>
+                <button id="confirm-yes-btn" class="flex-1 py-2.5 rounded-xl text-xs font-extrabold bg-red-600 hover:bg-red-500 text-white">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // CONSTANTES E ESTADO DO PAINEL KDS
+        // ==========================================
+        const ORDERS_STORAGE_KEY = 'pf_orders_v1';
+        const FIREBASE_URL_KEY = 'pf_firebase_url_v1';
+        const CHANNEL_NAME = 'pf_orders_channel';
+
+        let orders = [];
+        let soundEnabled = true;
+        let firebaseBaseUrl = '';
+        let firebasePollInterval = null;
+        let knownOrderIds = new Set();
+        let broadcastChannel = null;
+
+        // ==========================================
+        // INICIALIZAÇÃO
+        // ==========================================
+        function initKDS() {
+            // 1. Carregar pedidos locais
+            loadLocalOrders();
+            orders.forEach(o => knownOrderIds.add(o.id));
+
+            // 2. Configurar BroadcastChannel (mesmo navegador, abas diferentes)
+            if ('BroadcastChannel' in window) {
+                broadcastChannel = new BroadcastChannel(CHANNEL_NAME);
+                broadcastChannel.onmessage = (event) => {
+                    if (event.data && event.data.type === 'NEW_ORDER') {
+                        receiveIncomingOrder(event.data.order);
+                    } else if (event.data && event.data.type === 'SYNC_ORDERS') {
+                        loadLocalOrders(true);
+                    }
+                };
+            }
+
+            // 3. Ouvir evento storage (fallback entre abas no mesmo navegador)
+            window.addEventListener('storage', (e) => {
+                if (e.key === ORDERS_STORAGE_KEY) {
+                    loadLocalOrders(true);
+                }
+            });
+
+            // 4. Carregar URL do Firebase se salva
+            const savedUrl = localStorage.getItem(FIREBASE_URL_KEY);
+            if (savedUrl) {
+                firebaseBaseUrl = savedUrl;
+                startFirebaseSync();
+            }
+
+            // 5. Atualizar relógios decorridos a cada 15 segundos
+            setInterval(renderBoard, 15000);
+
+            renderBoard();
+            lucide.createIcons();
+        }
+
+        // ==========================================
+        // ARMAZENAMENTO LOCAL E RECEBIMENTO
+        // ==========================================
+        function loadLocalOrders(checkNewSound = false) {
+            try {
+                const raw = localStorage.getItem(ORDERS_STORAGE_KEY);
+                const parsed = raw ? JSON.parse(raw) : [];
+                if (Array.isArray(parsed)) {
+                    let hasBrandNew = false;
+                    parsed.forEach(o => {
+                        if (!knownOrderIds.has(o.id)) {
+                            knownOrderIds.add(o.id);
+                            if (o.status === 'pending') hasBrandNew = true;
+                        }
+                    });
+                    orders = parsed;
+                    if (checkNewSound && hasBrandNew) {
+                        playNotificationBeep();
+                        showToast('Novo pedido recebido!', 'amber');
+                    }
+                    renderBoard();
+                }
+            } catch (err) {
+                console.error('Erro ao ler pedidos locais:', err);
+            }
+        }
+
+        function saveLocalOrders() {
+            try {
+                localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(orders));
+                if (broadcastChannel) {
+                    broadcastChannel.postMessage({ type: 'SYNC_ORDERS' });
+                }
+            } catch (err) {
+                console.error('Erro ao salvar pedidos:', err);
+            }
+        }
+
+        function receiveIncomingOrder(order) {
+            if (!order || !order.id) return;
+            const exists = orders.some(o => o.id === order.id);
+            if (!exists) {
+                orders.unshift(order);
+                knownOrderIds.add(order.id);
+                saveLocalOrders();
+                playNotificationBeep();
+                showToast(`Novo pedido: ${order.location || 'Balcão'}!`, 'amber');
+                renderBoard();
+            }
+        }
+
+        // ==========================================
+        // SINCRONIZAÇÃO EM NUVEM (FIREBASE REST API)
+        // ==========================================
+        function openCloudModal() {
+            document.getElementById('firebase-url-input').value = firebaseBaseUrl || '';
+            document.getElementById('cloud-modal').classList.remove('hidden');
+        }
+
+        function closeCloudModal() {
+            document.getElementById('cloud-modal').classList.add('hidden');
+        }
+
+        function saveFirebaseConfig(event) {
+            event.preventDefault();
+            let url = document.getElementById('firebase-url-input').value.trim();
+            if (!url) return;
+            // Remover barra final se houver
+            url = url.replace(/\/+$/, '');
+            firebaseBaseUrl = url;
+            localStorage.setItem(FIREBASE_URL_KEY, firebaseBaseUrl);
+            closeCloudModal();
+            startFirebaseSync();
+            showToast('Conectado ao Firebase Realtime Database!', 'sky');
+        }
+
+        function disconnectFirebase() {
+            firebaseBaseUrl = '';
+            localStorage.removeItem(FIREBASE_URL_KEY);
+            if (firebasePollInterval) {
+                clearInterval(firebasePollInterval);
+                firebasePollInterval = null;
+            }
+            updateConnectionBadge(false);
+            closeCloudModal();
+            showToast('Nuvem desconectada. Operando em modo local.');
+        }
+
+        function updateConnectionBadge(isCloud) {
+            const badge = document.getElementById('connection-badge');
+            if (isCloud) {
+                badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-500/15 text-sky-300 border border-sky-500/30';
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span> Nuvem Conectada`;
+            } else {
+                badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Local Ativo`;
+            }
+        }
+
+        function startFirebaseSync() {
+            if (!firebaseBaseUrl) return;
+            updateConnectionBadge(true);
+            fetchFirebaseOrders();
+            if (firebasePollInterval) clearInterval(firebasePollInterval);
+            // Consulta pedidos a cada 4 segundos
+            firebasePollInterval = setInterval(fetchFirebaseOrders, 4000);
+        }
+
+        async function fetchFirebaseOrders() {
+            if (!firebaseBaseUrl) return;
+            try {
+                const res = await fetch(`${firebaseBaseUrl}/orders.json`);
+                if (!res.ok) return;
+                const data = await res.json();
+                if (!data) return;
+
+                const cloudOrders = Object.values(data).filter(o => o && o.id);
+                let hasNew = false;
+
+                cloudOrders.forEach(cloudOrder => {
+                    const localIdx = orders.findIndex(o => o.id === cloudOrder.id);
+                    if (localIdx === -1) {
+                        orders.unshift(cloudOrder);
+                        if (!knownOrderIds.has(cloudOrder.id)) {
+                            knownOrderIds.add(cloudOrder.id);
+                            if (cloudOrder.status === 'pending') hasNew = true;
+                        }
+                    } else {
+                        // Sincronizar status se mudou
+                        orders[localIdx] = { ...orders[localIdx], ...cloudOrder };
+                    }
+                });
+
+                // Ordenar do mais recente para o mais antigo
+                orders.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                saveLocalOrders();
+                renderBoard();
+
+                if (hasNew) {
+                    playNotificationBeep();
+                    showToast('Novo pedido recebido da nuvem!', 'amber');
+                }
+            } catch (err) {
+                console.warn('Falha temporária ao sincronizar Firebase:', err);
+            }
+        }
+
+        async function pushOrderStatusToFirebase(order) {
+            if (!firebaseBaseUrl || !order) return;
+            try {
+                await fetch(`${firebaseBaseUrl}/orders/${order.id}.json`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(order)
+                });
+            } catch (err) {
+                console.warn('Erro ao atualizar status no Firebase:', err);
+            }
+        }
+
+        async function deleteOrderFromFirebase(orderId) {
+            if (!firebaseBaseUrl) return;
+            try {
+                await fetch(`${firebaseBaseUrl}/orders/${orderId}.json`, {
+                    method: 'DELETE'
+                });
+            } catch (err) {
+                console.warn('Erro ao remover pedido do Firebase:', err);
+            }
+        }
+
+        // ==========================================
+        // ALERTA SONORO (WEB AUDIO API)
+        // ==========================================
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('sound-icon');
+            const label = document.getElementById('sound-label');
+            const btn = document.getElementById('sound-toggle-btn');
+
+            if (soundEnabled) {
+                icon.setAttribute('data-lucide', 'volume-2');
+                label.textContent = 'Som Ativo';
+                btn.classList.remove('text-gray-500');
+                btn.classList.add('text-amber-400');
+                playNotificationBeep();
+            } else {
+                icon.setAttribute('data-lucide', 'volume-x');
+                label.textContent = 'Mudo';
+                btn.classList.remove('text-amber-400');
+                btn.classList.add('text-gray-500');
+            }
+            lucide.createIcons({ nodes: [btn] });
+        }
+
+        function playNotificationBeep() {
+            if (!soundEnabled) return;
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                const ctx = new AudioCtx();
+                
+                // Dois bipes suaves tipo campainha de cozinha
+                [0, 0.18].forEach((delay, idx) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(idx === 0 ? 660 : 880, ctx.currentTime + delay);
+                    
+                    gain.gain.setValueAtTime(0.001, ctx.currentTime + delay);
+                    gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + delay + 0.03);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.25);
+
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+
+                    osc.start(ctx.currentTime + delay);
+                    osc.stop(ctx.currentTime + delay + 0.26);
+                });
+            } catch (e) {
+                console.warn('Áudio bloqueado pelo navegador até interação do usuário.');
+            }
+        }
+
+        // ==========================================
+        // PEDIDO DE TESTE (SIMULAÇÃO)
+        // ==========================================
+        function createTestOrder() {
+            const sampleLocs = ['Mesa 02', 'Mesa 05', 'Balcão', 'Mesa 08', 'Mesa 01'];
+            const sampleCustomers = ['Carlos', 'Mariana', 'Lucas', 'Fernanda', ''];
+            const sampleCombos = [
+                [
+                    { name: 'X-Ponto Final', qty: 1, price: 28.00 },
+                    { name: 'Porção de Batata Frita c/ Cheddar Média', qty: 1, price: 14.00 },
+                    { name: 'Refrigerante Coca-Cola 310ml', qty: 2, price: 5.50 }
+                ],
+                [
+                    { name: 'Jantinha c/ Costela', qty: 2, price: 20.00 },
+                    { name: 'Guaraná Antarctica 1L', qty: 1, price: 7.00 }
+                ],
+                [
+                    { name: 'X-Tudo', qty: 1, price: 16.00 },
+                    { name: 'Espeto de Medalhão de Frango', qty: 2, price: 8.00 },
+                    { name: 'Água s/ Gás 500ml Lapriori', qty: 1, price: 2.00 }
+                ]
+            ];
+            const sampleNotes = ['Sem cebola no lanche', 'Carne bem passada', '', 'Mandar maionese à parte'];
+
+            const items = sampleCombos[Math.floor(Math.random() * sampleCombos.length)];
+            const total = items.reduce((acc, item) => acc + item.price * item.qty, 0);
+            const orderNum = Math.floor(100 + Math.random() * 900);
+
+            const testOrder = {
+                id: 'ord_' + Date.now(),
+                number: orderNum,
+                location: sampleLocs[Math.floor(Math.random() * sampleLocs.length)],
+                customer: sampleCustomers[Math.floor(Math.random() * sampleCustomers.length)],
+                notes: sampleNotes[Math.floor(Math.random() * sampleNotes.length)],
+                items: items,
+                total: total,
+                status: 'pending',
+                createdAt: Date.now()
+            };
+
+            receiveIncomingOrder(testOrder);
+            pushOrderStatusToFirebase(testOrder);
+        }
+
+        // ==========================================
+        // AÇÕES NOS PEDIDOS (STATUS, EXCLUIR, IMPRIMIR)
+        // ==========================================
+        function advanceOrderStatus(orderId, nextStatus) {
+            const idx = orders.findIndex(o => o.id === orderId);
+            if (idx === -1) return;
+
+            orders[idx].status = nextStatus;
+            orders[idx].updatedAt = Date.now();
+            saveLocalOrders();
+            pushOrderStatusToFirebase(orders[idx]);
+            renderBoard();
+
+            const msgMap = {
+                preparing: 'Pedido movido para Em Preparo!',
+                done: 'Pedido marcado como Pronto / Entregue!',
+                pending: 'Pedido retornado para Pendentes.'
+            };
+            showToast(msgMap[nextStatus] || 'Status atualizado.');
+        }
+
+        function confirmCancelOrder(orderId) {
+            const order = orders.find(o => o.id === orderId);
+            if (!order) return;
+
+            document.getElementById('confirm-title').textContent = `Excluir Pedido #${order.number || ''}?`;
+            document.getElementById('confirm-msg').textContent = `Remover o pedido de ${order.location} permanentemente?`;
+            document.getElementById('confirm-yes-btn').onclick = () => {
+                orders = orders.filter(o => o.id !== orderId);
+                saveLocalOrders();
+                deleteOrderFromFirebase(orderId);
+                renderBoard();
+                closeConfirmModal();
+                showToast('Pedido excluído.');
+            };
+            document.getElementById('confirm-modal').classList.remove('hidden');
+        }
+
+        function openClearDoneModal() {
+            const doneCount = orders.filter(o => o.status === 'done').length;
+            if (doneCount === 0) {
+                showToast('Não há pedidos concluídos para limpar.');
+                return;
+            }
+            document.getElementById('confirm-title').textContent = 'Limpar Pedidos Prontos?';
+            document.getElementById('confirm-msg').textContent = `Isso removerá ${doneCount} pedido(s) da coluna Prontos / Entregues.`;
+            document.getElementById('confirm-yes-btn').onclick = () => {
+                const doneOrders = orders.filter(o => o.status === 'done');
+                doneOrders.forEach(o => deleteOrderFromFirebase(o.id));
+                orders = orders.filter(o => o.status !== 'done');
+                saveLocalOrders();
+                renderBoard();
+                closeConfirmModal();
+                showToast('Pedidos concluídos limpos!');
+            };
+            document.getElementById('confirm-modal').classList.remove('hidden');
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirm-modal').classList.add('hidden');
+        }
+
+        function printOrderTicket(orderId) {
+            const order = orders.find(o => o.id === orderId);
+            if (!order) return;
+
+            const timeStr = new Date(order.createdAt || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const printArea = document.getElementById('print-area');
+
+            printArea.innerHTML = `
+                <div style="text-align:center; border-bottom:1px dashed #000; padding-bottom:6px; margin-bottom:6px;">
+                    <strong style="font-size:15px;">PONTO FINAL</strong><br/>
+                    <span>COMANDA #${order.number || order.id.slice(-4)} - ${timeStr}</span><br/>
+                    <strong style="font-size:14px;">${order.location.toUpperCase()}</strong>
+                    ${order.customer ? `<br/>Cliente: ${order.customer}` : ''}
+                </div>
+                <div style="border-bottom:1px dashed #000; padding-bottom:6px; margin-bottom:6px;">
+                    ${order.items.map(i => `
+                        <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+                            <span>${i.qty}x ${i.name}</span>
+                            <span>${formatCurrency(i.price * i.qty)}</span>
+                        </div>
+                    `).join('')}
+                </div>
+                ${order.notes ? `<div style="border-bottom:1px dashed #000; padding-bottom:6px; margin-bottom:6px;"><strong>OBS:</strong> ${order.notes}</div>` : ''}
+                <div style="display:flex; justify-content:space-between; font-size:14px; font-weight:bold;">
+                    <span>TOTAL:</span>
+                    <span>${formatCurrency(order.total)}</span>
+                </div>
+            `;
+
+            window.print();
+        }
+
+        // ==========================================
+        // RENDERIZAÇÃO DO QUADRO E ESTATÍSTICAS
+        // ==========================================
+        function formatCurrency(val) {
+            return Number(val || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+
+        function getElapsedLabel(timestamp) {
+            if (!timestamp) return 'agora';
+            const diffMin = Math.floor((Date.now() - timestamp) / 60000);
+            if (diffMin < 1) return 'agora mesmo';
+            if (diffMin === 1) return 'há 1 min';
+            return `há ${diffMin} min`;
+        }
+
+        function renderBoard() {
+            const pending = orders.filter(o => o.status === 'pending');
+            const preparing = orders.filter(o => o.status === 'preparing');
+            const done = orders.filter(o => o.status === 'done');
+
+            document.getElementById('count-pending').textContent = pending.length;
+            document.getElementById('count-preparing').textContent = preparing.length;
+            document.getElementById('count-done').textContent = done.length;
+
+            // Estatísticas financeiras
+            const totalOrdersCount = orders.length;
+            const totalRevenue = orders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+            const avgTicket = totalOrdersCount > 0 ? totalRevenue / totalOrdersCount : 0;
+
+            document.getElementById('stat-count').textContent = totalOrdersCount;
+            document.getElementById('stat-revenue').textContent = formatCurrency(totalRevenue);
+            document.getElementById('stat-ticket').textContent = formatCurrency(avgTicket);
+
+            renderColumn('col-pending', pending, 'Nenhum pedido aguardando.');
+            renderColumn('col-preparing', preparing, 'Nenhum pedido em preparo.');
+            renderColumn('col-done', done, 'Nenhum pedido finalizado ainda.');
+
+            lucide.createIcons();
+        }
+
+        function renderColumn(containerId, list, emptyText) {
+            const container = document.getElementById(containerId);
+            if (list.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 px-4 border border-dashed border-[#262b36] rounded-2xl text-gray-500 text-xs">
+                        ${emptyText}
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = list.map(order => buildOrderCard(order)).join('');
+        }
+
+        function buildOrderCard(order) {
+            const timeStr = new Date(order.createdAt || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const elapsed = getElapsedLabel(order.createdAt);
+            const isPending = order.status === 'pending';
+            const isPreparing = order.status === 'preparing';
+
+            const borderClass = isPending
+                ? 'border-2 border-amber-500/80 new-order-pulse'
+                : isPreparing
+                    ? 'border border-sky-500/40'
+                    : 'border border-emerald-500/30 opacity-85';
+
+            let actionButtons = '';
+            if (isPending) {
+                actionButtons = `
+                    <button onclick="advanceOrderStatus('${order.id}', 'preparing')" class="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-extrabold text-xs transition shadow">
+                        <i data-lucide="flame" class="w-4 h-4"></i>
+                        Iniciar Preparo
+                    </button>
+                `;
+            } else if (isPreparing) {
+                actionButtons = `
+                    <button onclick="advanceOrderStatus('${order.id}', 'done')" class="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-stone-950 font-extrabold text-xs transition shadow">
+                        <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                        Marcar Pronto
+                    </button>
+                `;
+            } else {
+                actionButtons = `
+                    <button onclick="advanceOrderStatus('${order.id}', 'preparing')" class="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-[#222734] hover:bg-[#2c3344] text-gray-300 font-bold text-xs transition">
+                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                        Reabrir
+                    </button>
+                `;
+            }
+
+            return `
+                <div class="bg-[#1a1e29] rounded-2xl p-4 ${borderClass} shadow-lg card-animate space-y-3">
+                    <!-- Topo do Card -->
+                    <div class="flex items-start justify-between gap-2">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="px-2.5 py-0.5 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30 font-extrabold text-sm">
+                                    ${order.location || 'Balcão'}
+                                </span>
+                                <span class="text-xs font-bold text-gray-400">#${order.number || order.id.slice(-4)}</span>
+                            </div>
+                            ${order.customer ? `<p class="text-xs text-gray-300 font-semibold mt-1">Cliente: ${order.customer}</p>` : ''}
+                        </div>
+
+                        <div class="text-right">
+                            <span class="block text-xs font-bold text-gray-300">${timeStr}</span>
+                            <span class="text-[11px] font-semibold ${isPending ? 'text-amber-400' : 'text-gray-400'}">${elapsed}</span>
+                        </div>
+                    </div>
+
+                    <!-- Lista de Itens -->
+                    <div class="bg-[#12151d] rounded-xl p-3 border border-[#262b36] space-y-1.5">
+                        ${(order.items || []).map(item => `
+                            <div class="flex items-start justify-between gap-2 text-xs sm:text-sm">
+                                <span class="text-gray-200"><strong class="text-amber-400 font-extrabold">${item.qty}x</strong> ${item.name}</span>
+                                <span class="text-gray-400 font-semibold shrink-0">${formatCurrency(item.price * item.qty)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <!-- Observações -->
+                    ${order.notes ? `
+                        <div class="bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2 text-xs text-amber-200 flex items-start gap-2">
+                            <i data-lucide="message-square-warning" class="w-4 h-4 text-amber-400 shrink-0 mt-0.5"></i>
+                            <span><strong>Obs:</strong> ${order.notes}</span>
+                        </div>
+                    ` : ''}
+
+                    <!-- Total e Botões -->
+                    <div class="pt-2 border-t border-[#262b36] flex items-center justify-between">
+                        <span class="text-xs text-gray-400 font-semibold">Total</span>
+                        <span class="text-base font-extrabold text-white">${formatCurrency(order.total)}</span>
+                    </div>
+
+                    <div class="flex items-center gap-2 pt-0.5">
+                        ${actionButtons}
+                        <button onclick="printOrderTicket('${order.id}')" class="p-2.5 rounded-xl bg-[#222734] hover:bg-[#2d3344] text-gray-300 border border-[#303646] transition" title="Imprimir Comanda">
+                            <i data-lucide="printer" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="confirmCancelOrder('${order.id}')" class="p-2.5 rounded-xl bg-red-950/50 hover:bg-red-900/70 text-red-300 border border-red-900/50 transition" title="Excluir Pedido">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function showToast(msg, color = 'emerald') {
+            const container = document.getElementById('toast-container');
+            const el = document.createElement('div');
+            const border = color === 'amber' ? 'border-amber-500/50 text-amber-200' : color === 'sky' ? 'border-sky-500/50 text-sky-200' : 'border-emerald-500/40 text-gray-100';
+            el.className = `bg-[#181c26] border ${border} px-4 py-3 rounded-2xl shadow-2xl text-xs sm:text-sm font-bold flex items-center gap-2 card-animate pointer-events-auto`;
+            el.innerHTML = `<i data-lucide="bell-ring" class="w-4 h-4 text-amber-400 shrink-0"></i><span>${msg}</span>`;
+            container.appendChild(el);
+            lucide.createIcons({ nodes: [el] });
+            setTimeout(() => {
+                el.style.opacity = '0';
+                el.style.transition = 'opacity 0.2s';
+                setTimeout(() => el.remove(), 200);
+            }, 3200);
+        }
+
+        window.onload = initKDS;
+    </script>
+</body>
+</html>

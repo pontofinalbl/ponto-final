@@ -1,0 +1,1418 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cardápio Digital - Ponto Final</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f1115;
+            color: #f3f4f6;
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* Ocultar barra de rolagem horizontal nas categorias mantendo o scroll funcional */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .animate-slide-up {
+            animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col pb-24 selection:bg-amber-500 selection:text-stone-950">
+
+    <!-- Notificação Toast Flutuante -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Cabeçalho Principal -->
+    <header class="bg-[#161920] text-gray-100 border-b border-[#2a2f3a] shadow-xl relative overflow-hidden">
+        <!-- Detalhe decorativo de fundo -->
+        <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#f59e0b_1px,transparent_1px)] [background-size:18px_18px] pointer-events-none"></div>
+        
+        <div class="max-w-5xl mx-auto px-4 py-5 sm:py-6 relative z-10">
+            <div class="flex items-center justify-between gap-4">
+                <!-- Área da Logo e Título (Atalho secreto de 5 cliques) -->
+                <div id="secret-admin-trigger" onclick="handleSecretTrigger()" class="flex items-center gap-3.5 sm:gap-4 cursor-pointer select-none group">
+                    <div id="logo-container" class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-orange-600/20 border border-amber-400/30 overflow-hidden shrink-0 transition-transform group-active:scale-95">
+                        <i data-lucide="flame" class="w-9 h-9 text-stone-950"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 id="store-name-display" class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">Ponto Final</h1>
+                            <button id="edit-store-name-btn" onclick="event.stopPropagation(); openStoreNameModal()" class="hidden p-1.5 rounded-lg bg-[#242934] hover:bg-[#2f3542] text-amber-400 border border-[#363c4a] transition" title="Editar dados da lanchonete">
+                                <i data-lucide="pencil" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <p id="store-subtitle-display" class="text-gray-400 text-xs sm:text-sm flex items-center gap-2 mt-1">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+                            <span>Lanches, Espetos & Refeições • Pedido no Local</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Badge discreta de Mesa / Atendimento Presencial -->
+                <div class="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#1f232d] border border-[#2a2f3a] text-xs font-semibold text-gray-300">
+                    <i data-lucide="utensils-crossed" class="w-4 h-4 text-amber-400"></i>
+                    <span>Cardápio Digital de Salão</span>
+                </div>
+            </div>
+
+            <!-- Barra de Ferramentas do Modo Edição (Totalmente Oculta até desbloquear com senha) -->
+            <div id="admin-toolbar" class="hidden mt-5 pt-4 border-t border-[#2a2f3a] space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2 text-xs text-amber-300 bg-amber-500/10 border border-amber-500/25 px-3 py-1.5 rounded-xl">
+                        <i data-lucide="shield-check" class="w-4 h-4 shrink-0 text-amber-400"></i>
+                        <span><strong>Modo Editor Desbloqueado</strong> • Senha atual: <code id="current-pass-hint" class="bg-black/40 px-1.5 py-0.5 rounded text-amber-200 font-mono">1234</code></span>
+                    </div>
+                    <button onclick="lockEditMode()" class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm transition shadow-md">
+                        <i data-lucide="lock" class="w-4 h-4"></i>
+                        Sair e Bloquear Edição
+                    </button>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                    <button onclick="openProductModal()" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs sm:text-sm transition shadow-sm">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                        Novo Produto
+                    </button>
+                    <button onclick="openLogoModal()" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#242934] hover:bg-[#2f3542] text-gray-200 font-semibold text-xs sm:text-sm transition border border-[#363c4a]">
+                        <i data-lucide="image" class="w-4 h-4 text-amber-400"></i>
+                        Logo da Loja
+                    </button>
+                    <button onclick="openStoreNameModal()" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#242934] hover:bg-[#2f3542] text-gray-200 font-semibold text-xs sm:text-sm transition border border-[#363c4a]">
+                        <i data-lucide="store" class="w-4 h-4 text-amber-400"></i>
+                        Nome & Slogan
+                    </button>
+                    <button onclick="openPasswordModal()" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#242934] hover:bg-[#2f3542] text-gray-200 font-semibold text-xs sm:text-sm transition border border-[#363c4a]">
+                        <i data-lucide="key-round" class="w-4 h-4 text-amber-400"></i>
+                        Alterar Senha
+                    </button>
+                    <button onclick="openCloudSyncModal()" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 font-semibold text-xs sm:text-sm transition border border-sky-500/30">
+                        <i data-lucide="cloud" class="w-4 h-4 text-sky-400"></i>
+                        Conectar Cozinha (Nuvem)
+                    </button>
+                    <button onclick="openResetModal()" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-950/50 hover:bg-red-900/60 text-red-300 font-medium text-xs sm:text-sm transition border border-red-900/50 ml-auto">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                        Restaurar Padrão
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Barra Fixa de Busca e Navegação por Categorias -->
+    <div class="sticky top-0 z-30 bg-[#0f1115]/95 backdrop-blur-md border-b border-[#2a2f3a] shadow-lg">
+        <div class="max-w-5xl mx-auto px-4 pt-3 pb-2">
+            <!-- Campo de Busca -->
+            <div class="relative mb-3">
+                <i data-lucide="search" class="w-5 h-5 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+                <input 
+                    type="text" 
+                    id="search-input" 
+                    placeholder="Buscar lanche, espeto, porção, bebida, doce..." 
+                    oninput="handleSearch(this.value)"
+                    class="w-full pl-11 pr-10 py-2.5 bg-[#1a1d24] border border-[#2a2f3a] text-gray-100 placeholder-gray-500 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 rounded-xl text-sm outline-none transition"
+                >
+                <button id="clear-search-btn" onclick="clearSearch()" class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 p-1">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Abas de Categorias -->
+            <nav id="category-tabs" class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1.5">
+                <!-- Preenchido via JS -->
+            </nav>
+        </div>
+    </div>
+
+    <!-- Conteúdo Principal: Lista de Produtos -->
+    <main class="flex-1 max-w-5xl w-full mx-auto px-4 py-6">
+        <div id="menu-container" class="space-y-8">
+            <!-- Categorias e Cards renderizados via JS -->
+        </div>
+
+        <!-- Estado Vazio (Busca sem resultados) -->
+        <div id="empty-state" class="hidden text-center py-16 px-4">
+            <div class="w-16 h-16 rounded-full bg-[#1a1d24] border border-[#2a2f3a] text-gray-500 flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="search-x" class="w-8 h-8"></i>
+            </div>
+            <h3 class="text-lg font-bold text-gray-200">Nenhum produto encontrado</h3>
+            <p class="text-gray-400 text-sm mt-1 max-w-md mx-auto">Não encontramos itens correspondentes à sua busca. Tente outro termo ou limpe os filtros.</p>
+            <button onclick="clearSearch()" class="mt-4 px-4 py-2 rounded-xl bg-amber-500 text-stone-950 font-bold text-sm hover:bg-amber-400 transition">
+                Ver todo o cardápio
+            </button>
+        </div>
+    </main>
+
+    <!-- Barra Inferior Flutuante da Comanda (Apenas Modo Cliente quando há itens) -->
+    <div id="cart-floating-bar" class="hidden fixed bottom-4 inset-x-4 z-40 max-w-3xl mx-auto animate-slide-up">
+        <button onclick="openCartModal()" class="w-full bg-[#1a1d24] hover:bg-[#21252e] text-white p-3.5 sm:p-4 rounded-2xl shadow-2xl shadow-black/60 border border-amber-500/40 flex items-center justify-between transition transform active:scale-[0.99]">
+            <div class="flex items-center gap-3">
+                <div class="relative bg-amber-500 text-stone-950 p-2.5 rounded-xl font-bold">
+                    <i data-lucide="clipboard-list" class="w-5 h-5"></i>
+                    <span id="cart-badge-count" class="absolute -top-2 -right-2 bg-white text-stone-950 text-xs font-extrabold w-5 h-5 rounded-full flex items-center justify-center shadow">0</span>
+                </div>
+                <div class="text-left">
+                    <span class="block text-xs text-gray-400 font-medium">Minha Comanda (Mesa / Balcão)</span>
+                    <span id="cart-bar-total" class="text-base sm:text-lg font-extrabold text-amber-400">R$ 0,00</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-1.5 bg-amber-500 text-stone-950 px-4 py-2.5 rounded-xl font-extrabold text-sm shadow">
+                <span>Ver Comanda</span>
+                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </div>
+        </button>
+    </div>
+
+    <!-- MODAL: Senha do Modo Editor -->
+    <div id="auth-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[#1a1d24] rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-[#2a2f3a] animate-slide-up">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2.5">
+                    <div class="p-2 rounded-xl bg-amber-500/15 text-amber-400">
+                        <i data-lucide="lock" class="w-5 h-5"></i>
+                    </div>
+                    <h2 class="text-lg font-extrabold text-white">Acesso Restrito</h2>
+                </div>
+                <button onclick="closeAuthModal()" class="p-2 rounded-full hover:bg-[#262b36] text-gray-400 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <p class="text-xs text-gray-400 mb-4">Digite a senha de administrador para liberar a edição do cardápio.</p>
+            <form onsubmit="verifyAdminPassword(event)" class="space-y-4">
+                <div>
+                    <input type="password" id="admin-pass-input" required placeholder="Digite a senha..." class="w-full px-4 py-3 rounded-xl bg-[#12141a] border border-[#2a2f3a] focus:border-amber-500 text-white text-center text-lg tracking-widest font-bold outline-none">
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="closeAuthModal()" class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-gray-300 bg-[#242934] hover:bg-[#2f3542] transition">Cancelar</button>
+                    <button type="submit" class="flex-1 py-2.5 rounded-xl text-sm font-extrabold bg-amber-500 hover:bg-amber-400 text-stone-950 transition">Desbloquear</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Upload / Gerenciar Logo da Loja -->
+    <div id="logo-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[#1a1d24] rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#2a2f3a] animate-slide-up">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-extrabold text-white">Logo do Estabelecimento</h2>
+                <button onclick="closeLogoModal()" class="p-2 rounded-full hover:bg-[#262b36] text-gray-400 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="flex flex-col items-center gap-4 my-4">
+                <div id="logo-preview-box" class="w-28 h-28 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center border-2 border-[#363c4a] overflow-hidden shadow-lg">
+                    <i data-lucide="flame" class="w-12 h-12 text-stone-950"></i>
+                </div>
+                <p class="text-xs text-gray-400 text-center">Envie uma imagem (PNG, JPG ou WebP). Ela será salva automaticamente no aparelho.</p>
+                
+                <label class="w-full cursor-pointer flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-sm transition shadow">
+                    <i data-lucide="upload" class="w-4 h-4"></i>
+                    <span>Escolher Imagem da Logo</span>
+                    <input type="file" id="logo-file-input" accept="image/*" onchange="handleLogoUpload(event)" class="hidden">
+                </label>
+
+                <button id="remove-logo-btn" onclick="removeStoreLogo()" class="hidden w-full py-2.5 px-4 rounded-xl bg-red-950/60 hover:bg-red-900/70 text-red-300 border border-red-900/50 font-semibold text-xs transition">
+                    Remover Logo e Usar Ícone Padrão
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Alterar Senha de Administrador -->
+    <div id="password-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[#1a1d24] rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-[#2a2f3a] animate-slide-up">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-extrabold text-white">Alterar Senha Admin</h2>
+                <button onclick="closePasswordModal()" class="p-2 rounded-full hover:bg-[#262b36] text-gray-400 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <form onsubmit="saveNewPassword(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">Nova Senha</label>
+                    <input type="text" id="new-admin-pass" required minlength="3" placeholder="Ex: 4321" class="w-full px-3.5 py-2.5 rounded-xl bg-[#12141a] border border-[#2a2f3a] focus:border-amber-500 text-white outline-none text-sm font-bold">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closePasswordModal()" class="px-4 py-2 rounded-xl text-sm font-semibold text-gray-300 hover:bg-[#262b36]">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl text-sm font-extrabold bg-amber-500 hover:bg-amber-400 text-stone-950">Salvar Senha</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Configurar Sincronização com Painel da Cozinha (Firebase) -->
+    <div id="cloud-sync-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[#1a1d24] rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#2a2f3a] animate-slide-up">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-extrabold text-white">Conectar ao Painel da Cozinha</h2>
+                <button onclick="closeCloudSyncModal()" class="p-2 rounded-full hover:bg-[#262b36] text-gray-400 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <p class="text-xs text-gray-400 mb-3">Cole a mesma URL do <strong>Firebase Realtime Database</strong> usada no Painel de Pedidos para enviar pedidos direto do celular do cliente para a cozinha.</p>
+            <form onsubmit="saveCardapioFirebaseUrl(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">URL do Firebase</label>
+                    <input type="url" id="cardapio-firebase-url" placeholder="https://seu-projeto-default-rtdb.firebaseio.com" class="w-full px-3.5 py-2.5 rounded-xl bg-[#12141a] border border-[#2a2f3a] focus:border-sky-500 text-white outline-none text-sm">
+                </div>
+                <div class="flex justify-between items-center gap-2 pt-2">
+                    <button type="button" onclick="clearCardapioFirebaseUrl()" class="px-3 py-2 rounded-xl text-xs font-bold text-red-300 bg-red-950/50 hover:bg-red-900/60">Desconectar</button>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="closeCloudSyncModal()" class="px-4 py-2 rounded-xl text-sm font-semibold text-gray-300 hover:bg-[#262b36]">Cancelar</button>
+                        <button type="submit" class="px-5 py-2 rounded-xl text-sm font-extrabold bg-sky-500 hover:bg-sky-400 text-stone-950">Salvar</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Adicionar / Editar Produto -->
+    <div id="product-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[#1a1d24] rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#2a2f3a] animate-slide-up">
+            <div class="flex items-center justify-between mb-5">
+                <h2 id="product-modal-title" class="text-xl font-extrabold text-white">Novo Produto</h2>
+                <button onclick="closeProductModal()" class="p-2 rounded-full hover:bg-[#262b36] text-gray-400 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="product-form" onsubmit="saveProduct(event)" class="space-y-4">
+                <input type="hidden" id="prod-id">
+                
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">Nome do Produto *</label>
+                    <input type="text" id="prod-name" required placeholder="Ex: X-Ponto Final Especial" class="w-full px-3.5 py-2.5 rounded-xl bg-[#12141a] border border-[#2a2f3a] focus:border-amber-500 text-white outline-none text-sm font-medium">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">Preço (R$) *</label>
+                        <input type="number" id="prod-price" step="0.01" min="0" required placeholder="0,00" class="w-full px-3.5 py-2.5 rounded-xl bg-[#12141a] border border-[#2a2f3a] focus:border-amber-500 text-amber-400 outline-none text-sm font-extrabold">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">Categoria *</label>
+                        <select id="prod-category" required class="w-full px-3 py-2.5 rounded-xl bg-[#12141a] border border-[#2a2f3a] focus:border-amber-500 text-white outline-none text-sm font-medium">
+                            <!-- Preenchido via JS -->
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">Descrição / Ingredientes (Opcional)</label>
+                    <textarea id="prod-desc" rows="2" placeholder="Ex: Pão, hambúrguer, queijo, bacon, ovo, salada..." class="w-full px-3.5 py-2.5 rounded-xl bg-[#12141a] border border-[#2a2f3a] focus:border-amber-500 text-white outline-none text-sm resize-none"></textarea>
+                </div>
+
+                <div class="pt-2 flex items-center justify-end gap-2">
+                    <button type="button" onclick="closeProductModal()" class="px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-300 hover:bg-[#262b36] transition">Cancelar</button>
+                    <button type="submit" class="px-5 py-2.5 rounded-xl text-sm font-extrabold bg-amber-500 hover:bg-amber-400 text-stone-950 shadow-md transition">Salvar Produto</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Editar Nome da Lanchonete -->
+    <div id="store-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[#1a1d24] rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#2a2f3a] animate-slide-up">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-extrabold text-white">Dados do Estabelecimento</h2>
+                <button onclick="closeStoreNameModal()" class="p-2 rounded-full hover:bg-[#262b36] text-gray-400 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <form onsubmit="saveStoreInfo(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">Nome da Lanchonete</label>
+                    <input type="text" id="input-store-name" required class="w-full px-3.5 py-2.5 rounded-xl bg-[#12141a] border border-[#2a2f3a] focus:border-amber-500 text-white outline-none text-sm font-bold">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">Subtítulo / Slogan</label>
+                    <input type="text" id="input-store-subtitle" required class="w-full px-3.5 py-2.5 rounded-xl bg-[#12141a] border border-[#2a2f3a] focus:border-amber-500 text-white outline-none text-sm">
+                </div>
+                <div class="pt-2 flex justify-end gap-2">
+                    <button type="button" onclick="closeStoreNameModal()" class="px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-300 hover:bg-[#262b36]">Cancelar</button>
+                    <button type="submit" class="px-5 py-2.5 rounded-xl text-sm font-extrabold bg-amber-500 hover:bg-amber-400 text-stone-950">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Confirmar Exclusão ou Restauração -->
+    <div id="confirm-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[#1a1d24] rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-[#2a2f3a] text-center animate-slide-up">
+            <div class="w-14 h-14 rounded-full bg-red-500/15 text-red-400 flex items-center justify-center mx-auto mb-4 border border-red-500/30">
+                <i data-lucide="alert-triangle" class="w-7 h-7"></i>
+            </div>
+            <h3 id="confirm-title" class="text-lg font-extrabold text-white">Confirmar Ação</h3>
+            <p id="confirm-message" class="text-gray-400 text-sm mt-1.5">Tem certeza que deseja continuar?</p>
+            <div class="mt-6 flex items-center justify-center gap-3">
+                <button onclick="closeConfirmModal()" class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-gray-300 bg-[#242934] hover:bg-[#2f3542] transition">Cancelar</button>
+                <button id="confirm-action-btn" class="flex-1 py-2.5 rounded-xl text-sm font-extrabold text-white bg-red-600 hover:bg-red-500 transition">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Comanda Presencial (Mesa / Balcão) -->
+    <div id="cart-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-[#1a1d24] rounded-t-3xl sm:rounded-3xl max-w-lg w-full max-h-[92vh] flex flex-col shadow-2xl border border-[#2a2f3a] animate-slide-up">
+            <!-- Cabeçalho Modal Comanda -->
+            <div class="p-5 border-b border-[#2a2f3a] flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="p-2 rounded-xl bg-amber-500/15 text-amber-400">
+                        <i data-lucide="clipboard-list" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-extrabold text-white">Comanda do Pedido</h2>
+                        <p class="text-xs text-gray-400">Consumo no local (Mesa ou Balcão)</p>
+                    </div>
+                </div>
+                <button onclick="closeCartModal()" class="p-2 rounded-full hover:bg-[#262b36] text-gray-400">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Lista de Itens na Comanda -->
+            <div id="cart-items-list" class="p-5 overflow-y-auto flex-1 space-y-3">
+                <!-- Preenchido via JS -->
+            </div>
+
+            <!-- Identificação Mesa/Balcão, Observações e Confirmação -->
+            <div class="p-5 bg-[#14171d] border-t border-[#2a2f3a] rounded-b-3xl space-y-3.5">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-400 mb-1">Local / Mesa *</label>
+                        <select id="order-location" class="w-full px-3.5 py-2.5 rounded-xl border border-[#2a2f3a] bg-[#1a1d24] text-white text-sm font-bold outline-none focus:border-amber-500">
+                            <option value="Balcão">Retirar / Pedir no Balcão</option>
+                            <option value="Mesa 01">Mesa 01</option>
+                            <option value="Mesa 02">Mesa 02</option>
+                            <option value="Mesa 03">Mesa 03</option>
+                            <option value="Mesa 04">Mesa 04</option>
+                            <option value="Mesa 05">Mesa 05</option>
+                            <option value="Mesa 06">Mesa 06</option>
+                            <option value="Mesa 07">Mesa 07</option>
+                            <option value="Mesa 08">Mesa 08</option>
+                            <option value="Mesa 09">Mesa 09</option>
+                            <option value="Mesa 10">Mesa 10</option>
+                            <option value="Mesa 11">Mesa 11</option>
+                            <option value="Mesa 12">Mesa 12</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-400 mb-1">Seu Nome (opcional)</label>
+                        <input type="text" id="order-customer-name" placeholder="Ex: João" class="w-full px-3.5 py-2.5 rounded-xl border border-[#2a2f3a] bg-[#1a1d24] text-white placeholder-gray-500 text-sm outline-none focus:border-amber-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 mb-1">Observações do preparo (opcional)</label>
+                    <input type="text" id="order-notes" placeholder="Ex: Sem cebola, bem passado, talheres..." class="w-full px-3.5 py-2.5 rounded-xl border border-[#2a2f3a] bg-[#1a1d24] text-white placeholder-gray-500 text-sm outline-none focus:border-amber-500">
+                </div>
+
+                <div class="flex items-center justify-between text-base font-extrabold text-white pt-1 border-t border-[#2a2f3a]">
+                    <span>Total a Pagar no Local</span>
+                    <span id="cart-modal-total" class="text-xl text-amber-400">R$ 0,00</span>
+                </div>
+
+                <button onclick="finalizeInPersonOrder()" class="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-extrabold text-sm sm:text-base shadow-lg shadow-amber-500/20 transition">
+                    <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+                    Confirmar Pedido para Atendente / Caixa
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Tela de Confirmação Presencial (Para mostrar ao Garçom/Caixa) -->
+    <div id="order-ticket-modal" class="hidden fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-[#1a1d24] rounded-3xl max-w-md w-full p-6 shadow-2xl border-2 border-amber-500/60 animate-slide-up max-h-[92vh] flex flex-col">
+            <div class="text-center pb-4 border-b border-dashed border-[#363c4a]">
+                <div class="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto mb-2 border border-emerald-500/30">
+                    <i data-lucide="check-circle" class="w-7 h-7"></i>
+                </div>
+                <h2 class="text-xl font-extrabold text-white">Pedido Anotado!</h2>
+                <p class="text-xs text-amber-400 font-semibold mt-0.5">Mostre esta tela ao garçom ou no caixa</p>
+            </div>
+
+            <div class="my-4 bg-[#12141a] rounded-2xl p-4 border border-[#2a2f3a] overflow-y-auto flex-1 space-y-3">
+                <div class="flex items-center justify-between border-b border-[#2a2f3a] pb-2.5">
+                    <div>
+                        <span class="text-[11px] uppercase tracking-wider text-gray-400 block">Localização</span>
+                        <span id="ticket-location" class="text-lg font-extrabold text-amber-400">Balcão</span>
+                    </div>
+                    <div id="ticket-customer-box" class="text-right hidden">
+                        <span class="text-[11px] uppercase tracking-wider text-gray-400 block">Cliente</span>
+                        <span id="ticket-customer" class="text-sm font-bold text-white"></span>
+                    </div>
+                </div>
+
+                <div id="ticket-items" class="space-y-2 text-sm">
+                    <!-- Itens do ticket -->
+                </div>
+
+                <div id="ticket-notes-box" class="hidden pt-2 border-t border-[#2a2f3a] text-xs text-amber-200 bg-amber-500/10 p-2.5 rounded-xl">
+                    <strong>Obs:</strong> <span id="ticket-notes"></span>
+                </div>
+
+                <div class="pt-3 border-t border-dashed border-[#363c4a] flex items-center justify-between">
+                    <span class="text-sm font-bold text-gray-300">TOTAL</span>
+                    <span id="ticket-total" class="text-2xl font-extrabold text-white">R$ 0,00</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2.5 pt-1">
+                <button onclick="copyTicketSummary()" class="flex items-center justify-center gap-1.5 py-3 px-3 rounded-xl bg-[#242934] hover:bg-[#2f3542] text-gray-200 font-bold text-xs sm:text-sm border border-[#363c4a] transition">
+                    <i data-lucide="copy" class="w-4 h-4"></i>
+                    Copiar Resumo
+                </button>
+                <button onclick="startNewOrder()" class="flex items-center justify-center gap-1.5 py-3 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-extrabold text-xs sm:text-sm transition">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    Novo Pedido
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // DADOS INICIAIS DO CARDÁPIO (PONTO FINAL)
+        // ==========================================
+        const CATEGORIES = [
+            { id: 'combos', name: 'Combos', icon: 'sparkles' },
+            { id: 'lanches', name: 'Lanches', icon: 'sandwich' },
+            { id: 'espetos', name: 'Espetos', icon: 'flame' },
+            { id: 'refeicoes', name: 'Refeições', icon: 'utensils' },
+            { id: 'porcoes', name: 'Porções', icon: 'drumstick' },
+            { id: 'bebidas', name: 'Bebidas', icon: 'cup-soda' },
+            { id: 'doces', name: 'Doces & Balas', icon: 'candy' }
+        ];
+
+        const DEFAULT_PRODUCTS = [
+            // COMBOS
+            { id: 'p1', category: 'combos', name: 'Combo Família Ponto Final', price: 56.00, desc: 'Combo especial da casa ideal para compartilhar na mesa.' },
+
+            // LANCHES
+            { id: 'p2', category: 'lanches', name: 'X-Ponto Final', price: 28.00, desc: 'O gigante da casa! Duplo hambúrguer, bacon, calabresa, ovo, muito queijo e acompanhamentos.' },
+            { id: 'p3', category: 'lanches', name: 'X-Tudo', price: 16.00, desc: 'Completo com hambúrguer, bacon, calabresa, ovo, presunto, queijo e salada.' },
+            { id: 'p4', category: 'lanches', name: 'X-Bacon', price: 12.00, desc: 'Pão, hambúrguer, queijo mussarela, bacon crocante e salada.' },
+            { id: 'p5', category: 'lanches', name: 'X-Calabresa', price: 12.00, desc: 'Pão, hambúrguer, calabresa acebolada, queijo e salada.' },
+            { id: 'p6', category: 'lanches', name: 'X-Egg', price: 12.00, desc: 'Pão, hambúrguer, ovo na chapa, queijo mussarela e salada.' },
+            { id: 'p7', category: 'lanches', name: 'Hambúrguer Completo', price: 10.00, desc: 'Pão, carne, salada fresca, milho, batata palha e molhos.' },
+            { id: 'p8', category: 'lanches', name: 'Hambúrguer Simples', price: 8.00, desc: 'Pão de hambúrguer, carne, molho especial e batata palha.' },
+            { id: 'p9', category: 'lanches', name: 'Misto Completo', price: 7.00, desc: 'Pão, presunto, queijo, tomate, alface e milho.' },
+            { id: 'p10', category: 'lanches', name: 'Misto Simples', price: 6.00, desc: 'Pão na chapa com presunto e queijo derretido.' },
+            { id: 'p11', category: 'lanches', name: 'Salgadinho', price: 5.00, desc: 'Salgadinho pacote tradicional.' },
+            { id: 'p12', category: 'lanches', name: 'Salgadinho Plinc', price: 3.50, desc: 'Pacote de salgadinho crocante.' },
+
+            // ESPETOS
+            { id: 'p13', category: 'espetos', name: 'Espeto de Costela', price: 10.00, desc: 'Costela bovina macia assada lentamente na brasa.' },
+            { id: 'p14', category: 'espetos', name: 'Espeto de Carne', price: 8.00, desc: 'Carne bovina selecionada assada na brasa.' },
+            { id: 'p15', category: 'espetos', name: 'Espeto de Medalhão de Frango', price: 8.00, desc: 'Cubos de peito de frango envolvidos com bacon.' },
+            { id: 'p16', category: 'espetos', name: 'Espeto de Coxinha da Asa', price: 8.00, desc: 'Coxinhas da asa temperadas e douradas na brasa.' },
+            { id: 'p17', category: 'espetos', name: 'Espeto de Meio da Asa', price: 8.00, desc: 'Tulipas de frango bem temperadas na brasa.' },
+            { id: 'p18', category: 'espetos', name: 'Espeto de Coração', price: 8.00, desc: 'Coração de frango temperado e assado na brasa.' },
+            { id: 'p19', category: 'espetos', name: 'Espeto de Linguiça', price: 8.00, desc: 'Linguiça toscana suculenta assada na brasa.' },
+            { id: 'p20', category: 'espetos', name: 'Espeto de Queijo', price: 8.00, desc: 'Queijo coalho dourado na brasa.' },
+
+            // REFEIÇÕES
+            { id: 'p21', category: 'refeicoes', name: 'Jantinha c/ Costela', price: 20.00, desc: 'Arroz, feijão tropeiro, mandioca cozida, vinagrete e espeto de costela.' },
+            { id: 'p22', category: 'refeicoes', name: 'Marmita de Feijoada', price: 20.00, desc: 'Feijoada tradicional acompanhada de arroz branco, couve e farofa.' },
+            { id: 'p23', category: 'refeicoes', name: 'Marmita / Prato Feito', price: 18.00, desc: 'Refeição completa com arroz, feijão, guarnição, salada e carne.' },
+            { id: 'p24', category: 'refeicoes', name: 'Jantinha', price: 16.00, desc: 'Arroz, feijão tropeiro, mandioca cozida, vinagrete e 1 espeto à escolha.' },
+
+            // PORÇÕES
+            { id: 'p25', category: 'porcoes', name: 'Porção de Carne de Sol + Mandioca', price: 35.00, desc: 'Carne de sol acebolada acompanhada de mandioca cozida ou frita.' },
+            { id: 'p26', category: 'porcoes', name: 'Porção de Batata Frita c/ Cheddar Grande', price: 24.00, desc: 'Porção grande de batatas fritas crocantes com bastante cheddar.' },
+            { id: 'p27', category: 'porcoes', name: 'Porção de Batata Frita Simples Grande', price: 20.00, desc: 'Porção generosa de batatas fritas sequinhas e crocantes.' },
+            { id: 'p28', category: 'porcoes', name: 'Porção de Batata Frita c/ Cheddar Média', price: 14.00, desc: 'Batatas fritas cobertas com delicioso creme de cheddar (média).' },
+            { id: 'p29', category: 'porcoes', name: 'Porção de Batata Frita Simples Média', price: 10.00, desc: 'Batatas fritas sequinhas e crocantes (média).' },
+            { id: 'p30', category: 'porcoes', name: 'Porção de Feijão Tropeiro', price: 10.00, desc: 'Feijão tropeiro tradicional com bacon, linguiça e farinha.' },
+            { id: 'p31', category: 'porcoes', name: 'Porção Feijoada', price: 7.00, desc: 'Porção individual de feijoada temperada.' },
+
+            // BEBIDAS
+            { id: 'p32', category: 'bebidas', name: 'Coca-Cola 2L PET', price: 14.00, desc: 'Garrafa PET 2 Litros.' },
+            { id: 'p33', category: 'bebidas', name: 'Coca-Cola Zero 2L PET', price: 14.00, desc: 'Garrafa PET 2 Litros zero açúcar.' },
+            { id: 'p34', category: 'bebidas', name: 'Guaraná Antarctica 2L', price: 12.00, desc: 'Garrafa PET 2 Litros.' },
+            { id: 'p35', category: 'bebidas', name: 'Pepsi 2L', price: 12.00, desc: 'Garrafa PET 2 Litros.' },
+            { id: 'p36', category: 'bebidas', name: 'Sukita Laranja 2L', price: 11.00, desc: 'Garrafa PET 2 Litros.' },
+            { id: 'p37', category: 'bebidas', name: 'Coca-Cola 1,5L PET', price: 11.00, desc: 'Garrafa PET 1,5 Litros.' },
+            { id: 'p38', category: 'bebidas', name: 'Sprite 1,5L', price: 10.00, desc: 'Garrafa PET 1,5 Litros.' },
+            { id: 'p39', category: 'bebidas', name: 'Coca-Cola 2L Retornável', price: 8.00, desc: 'Garrafa retornável 2 Litros (consumo no local).' },
+            { id: 'p40', category: 'bebidas', name: 'H2O! 500ml PET', price: 8.00, desc: 'Garrafa 500ml.' },
+            { id: 'p41', category: 'bebidas', name: 'Coca-Cola 600ml PET', price: 7.50, desc: 'Garrafa PET 600ml.' },
+            { id: 'p42', category: 'bebidas', name: 'Kuat Guaraná 1,5L PET', price: 7.50, desc: 'Garrafa PET 1,5 Litros.' },
+            { id: 'p43', category: 'bebidas', name: 'Nutri Néctar Sabor Manga 1L', price: 7.50, desc: 'Caixa 1 Litro sabor manga.' },
+            { id: 'p44', category: 'bebidas', name: 'Nutri Néctar Sabor Uva 1L', price: 7.50, desc: 'Caixa 1 Litro sabor uva.' },
+            { id: 'p45', category: 'bebidas', name: 'Nutri Néctar Sabor Maracujá 1L', price: 7.50, desc: 'Caixa 1 Litro sabor maracujá.' },
+            { id: 'p46', category: 'bebidas', name: 'Guaraná Antarctica 1L', price: 7.00, desc: 'Garrafa 1 Litro.' },
+            { id: 'p47', category: 'bebidas', name: 'Guaraná Mineiro 600ml', price: 6.50, desc: 'Garrafa PET 600ml.' },
+            { id: 'p48', category: 'bebidas', name: 'H2O! Lata 350ml', price: 6.00, desc: 'Lata gelada 350ml.' },
+            { id: 'p49', category: 'bebidas', name: 'Refrigerante Coca-Cola 310ml', price: 5.50, desc: 'Lata gelada 310ml.' },
+            { id: 'p50', category: 'bebidas', name: 'Refrigerante Coca-Cola Zero 310ml', price: 5.50, desc: 'Lata gelada 310ml zero açúcar.' },
+            { id: 'p51', category: 'bebidas', name: 'Fanta Laranja 310ml', price: 5.50, desc: 'Lata gelada 310ml.' },
+            { id: 'p52', category: 'bebidas', name: 'Fanta Uva 310ml', price: 5.50, desc: 'Lata gelada 310ml.' },
+            { id: 'p53', category: 'bebidas', name: 'Sprite 310ml', price: 5.50, desc: 'Lata gelada 310ml.' },
+            { id: 'p54', category: 'bebidas', name: 'Pepsi 269ml', price: 4.50, desc: 'Lata gelada 269ml.' },
+            { id: 'p55', category: 'bebidas', name: 'Guaraná Antarctica 269ml Lata', price: 4.50, desc: 'Lata gelada 269ml.' },
+            { id: 'p56', category: 'bebidas', name: 'Guaraná Antarctica Zero 269ml', price: 4.50, desc: 'Lata gelada 269ml zero açúcar.' },
+            { id: 'p57', category: 'bebidas', name: 'Refrigerante Guaraná Mineiro 269ml', price: 4.50, desc: 'Lata gelada 269ml.' },
+            { id: 'p58', category: 'bebidas', name: 'Água c/ Gás Lapriori', price: 3.00, desc: 'Garrafa 500ml com gás.' },
+            { id: 'p59', category: 'bebidas', name: 'Água s/ Gás 500ml Lapriori', price: 2.00, desc: 'Garrafa 500ml sem gás.' },
+
+            // DOCES & BALAS
+            { id: 'p60', category: 'doces', name: 'Freegels Extra Forte Unid.', price: 3.00, desc: 'Drops refrescante extra forte.' },
+            { id: 'p61', category: 'doces', name: 'Freegels Menta Unid.', price: 3.00, desc: 'Drops sabor menta.' },
+            { id: 'p62', category: 'doces', name: 'Doce Paçocão', price: 2.50, desc: 'Paçoca tamanho grande.' },
+            { id: 'p63', category: 'doces', name: 'Doce 2,50', price: 2.50, desc: 'Doces variados da bomboniere.' },
+            { id: 'p64', category: 'doces', name: 'Sonho de Valsa Unid.', price: 2.00, desc: 'Bombom wafer recheado com castanha de caju.' },
+            { id: 'p65', category: 'doces', name: 'Ouro Branco', price: 2.00, desc: 'Bombom chocolate branco e preto.' },
+            { id: 'p66', category: 'doces', name: 'Doce de Banana', price: 2.00, desc: 'Bananada tradicional.' },
+            { id: 'p67', category: 'doces', name: 'Doce de Goiaba', price: 2.00, desc: 'Goiabada em tablete.' },
+            { id: 'p68', category: 'doces', name: 'Docile Canudinho 15g', price: 1.50, desc: 'Regaliz doce pacotinho 15g.' },
+            { id: 'p69', category: 'doces', name: 'Jujuba Unid.', price: 1.00, desc: 'Gomas açucaradas.' },
+            { id: 'p70', category: 'doces', name: 'Pirulito', price: 1.00, desc: 'Sabores variados.' },
+            { id: 'p71', category: 'doces', name: 'Paçoca', price: 0.50, desc: 'Paçoca de amendoim tradicional.' },
+            { id: 'p72', category: 'doces', name: 'Chiclete', price: 0.25, desc: 'Unidade.' },
+            { id: 'p73', category: 'doces', name: 'Chiclete Poosh Hortelã 5g', price: 0.25, desc: 'Chiclete recheado sabor hortelã.' },
+            { id: 'p74', category: 'doces', name: 'Chiclete Poosh 7 Belo 5g', price: 0.25, desc: 'Chiclete recheado sabor framboesa.' },
+            { id: 'p75', category: 'doces', name: 'Balinha 0,20', price: 0.20, desc: 'Balas recheadas / mastigáveis.' },
+            { id: 'p76', category: 'doces', name: 'Balinha 0,15', price: 0.15, desc: 'Sabores sortidos.' }
+        ];
+
+        // ==========================================
+        // ESTADO DA APLICAÇÃO E CHAVES DE ARMAZENAMENTO
+        // ==========================================
+        const STORAGE_KEY_PRODUCTS = 'ponto_final_menu_products_v2';
+        const STORAGE_KEY_STORE = 'ponto_final_store_info_v2';
+        const STORAGE_KEY_PASS = 'ponto_final_admin_pass_v2';
+        const ORDERS_STORAGE_KEY = 'pf_orders_v1';
+        const FIREBASE_URL_KEY = 'pf_firebase_url_v1';
+        const ORDERS_CHANNEL_NAME = 'pf_orders_channel';
+
+        let products = [];
+        let storeInfo = {
+            name: 'Ponto Final',
+            subtitle: 'Lanches, Espetos & Refeições • Pedido no Local',
+            logoBase64: null
+        };
+        let adminPassword = '1234';
+        let isEditMode = false;
+        let activeCategory = 'all';
+        let searchQuery = '';
+        let cart = {}; // { productId: quantity }
+        let lastConfirmedTicketText = '';
+        let secretClickCount = 0;
+        let secretClickTimer = null;
+        let ordersChannel = ('BroadcastChannel' in window) ? new BroadcastChannel(ORDERS_CHANNEL_NAME) : null;
+
+        // ==========================================
+        // INICIALIZAÇÃO E PERSISTÊNCIA
+        // ==========================================
+        function initApp() {
+            loadFromStorage();
+            populateCategorySelect();
+            renderStoreInfo();
+            renderCategoryTabs();
+            renderMenu();
+            updateCartUI();
+            setupKeyboardShortcut();
+            if (window.lucide) lucide.createIcons();
+        }
+// ... existing code ... -->
+        function saveStoreToStorage() {
+            try {
+                localStorage.setItem(STORAGE_KEY_STORE, JSON.stringify(storeInfo));
+            } catch (e) {
+                showToast('Imagem muito grande para salvar no navegador. Tente uma menor.', 'error');
+            }
+        }
+
+        // ==========================================
+        // RENDERIZAÇÃO DA LOJA, LOGO, CATEGORIAS E MENU
+        // ==========================================
+        function populateCategorySelect() {
+            const select = document.getElementById('prod-category');
+            if (!select) return;
+            select.innerHTML = CATEGORIES.map(cat =>
+                `<option value="${cat.id}">${cat.name}</option>`
+            ).join('');
+        }
+
+        function renderStoreInfo() {
+            const nameEl = document.getElementById('store-name-display');
+            const subEl = document.getElementById('store-subtitle-display');
+            const logoContainer = document.getElementById('logo-container');
+
+            if (nameEl) nameEl.textContent = storeInfo.name || 'Ponto Final';
+            if (subEl) {
+                subEl.innerHTML = `
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+                    <span>${storeInfo.subtitle || 'Lanches, Espetos & Refeições • Pedido no Local'}</span>
+                `;
+            }
+
+            if (logoContainer) {
+                if (storeInfo.logoBase64) {
+                    logoContainer.innerHTML = `<img src="${storeInfo.logoBase64}" alt="Logo" class="w-full h-full object-cover">`;
+                } else {
+                    logoContainer.innerHTML = `<i data-lucide="flame" class="w-9 h-9 text-stone-950"></i>`;
+                }
+            }
+        }
+
+        function renderCategoryTabs() {
+            const nav = document.getElementById('category-tabs');
+            if (!nav) return;
+
+            const allTab = `
+                <button onclick="selectCategory('all')" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition ${
+                    activeCategory === 'all'
+                        ? 'bg-amber-500 text-stone-950 shadow-md shadow-amber-500/20'
+                        : 'bg-[#1a1d24] text-gray-300 hover:bg-[#242934] border border-[#2a2f3a]'
+                }">
+                    <i data-lucide="layout-grid" class="w-4 h-4"></i>
+                    <span>Todos</span>
+                </button>
+            `;
+
+            const catTabs = CATEGORIES.map(cat => {
+                const isActive = activeCategory === cat.id;
+                return `
+                    <button onclick="selectCategory('${cat.id}')" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition ${
+                        isActive
+                            ? 'bg-amber-500 text-stone-950 shadow-md shadow-amber-500/20'
+                            : 'bg-[#1a1d24] text-gray-300 hover:bg-[#242934] border border-[#2a2f3a]'
+                    }">
+                        <i data-lucide="${cat.icon}" class="w-4 h-4"></i>
+                        <span>${cat.name}</span>
+                    </button>
+                `;
+            }).join('');
+
+            nav.innerHTML = allTab + catTabs;
+            if (window.lucide) lucide.createIcons({ nodes: [nav] });
+        }
+
+        function selectCategory(catId) {
+            activeCategory = catId;
+            renderCategoryTabs();
+            renderMenu();
+        }
+
+        function handleSearch(val) {
+            searchQuery = val.trim().toLowerCase();
+            const clearBtn = document.getElementById('clear-search-btn');
+            if (clearBtn) {
+                if (searchQuery.length > 0) clearBtn.classList.remove('hidden');
+                else clearBtn.classList.add('hidden');
+            }
+            renderMenu();
+        }
+
+        function clearSearch() {
+            searchQuery = '';
+            activeCategory = 'all';
+            const input = document.getElementById('search-input');
+            const clearBtn = document.getElementById('clear-search-btn');
+            if (input) input.value = '';
+            if (clearBtn) clearBtn.classList.add('hidden');
+            renderCategoryTabs();
+            renderMenu();
+        }
+
+        function renderMenu() {
+            const container = document.getElementById('menu-container');
+            const emptyState = document.getElementById('empty-state');
+            if (!container) return;
+
+            const filtered = products.filter(p => {
+                const matchesCat = activeCategory === 'all' || p.category === activeCategory;
+                const matchesSearch = !searchQuery ||
+                    p.name.toLowerCase().includes(searchQuery) ||
+                    (p.desc && p.desc.toLowerCase().includes(searchQuery));
+                return matchesCat && matchesSearch;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = '';
+                if (emptyState) emptyState.classList.remove('hidden');
+                return;
+            }
+            if (emptyState) emptyState.classList.add('hidden');
+
+            const categoriesToRender = activeCategory === 'all'
+                ? CATEGORIES
+                : CATEGORIES.filter(c => c.id === activeCategory);
+
+            let html = '';
+            categoriesToRender.forEach(cat => {
+                const catProducts = filtered.filter(p => p.category === cat.id);
+                if (catProducts.length === 0) return;
+
+                html += `
+                    <section class="space-y-3.5">
+                        <div class="flex items-center justify-between border-b border-[#2a2f3a] pb-2">
+                            <div class="flex items-center gap-2">
+                                <div class="p-1.5 rounded-lg bg-amber-500/15 text-amber-400">
+                                    <i data-lucide="${cat.icon}" class="w-5 h-5"></i>
+                                </div>
+                                <h2 class="text-lg sm:text-xl font-extrabold text-white tracking-tight">${cat.name}</h2>
+                            </div>
+                            <span class="text-xs font-semibold text-gray-500">${catProducts.length} ${catProducts.length === 1 ? 'item' : 'itens'}</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                            ${catProducts.map(prod => buildProductCard(prod)).join('')}
+                        </div>
+                    </section>
+                `;
+            });
+
+            container.innerHTML = html;
+            if (window.lucide) lucide.createIcons({ nodes: [container] });
+        }
+
+        function buildProductCard(prod) {
+            const qty = cart[prod.id] || 0;
+
+            if (isEditMode) {
+                return `
+                    <div class="bg-[#161920] rounded-2xl p-4 border border-amber-500/30 flex items-center justify-between gap-3 shadow-md">
+                        <div class="min-w-0 flex-1">
+                            <h3 class="font-bold text-white text-sm sm:text-base truncate">${prod.name}</h3>
+                            ${prod.desc ? `<p class="text-xs text-gray-400 line-clamp-2 mt-0.5">${prod.desc}</p>` : ''}
+                            <span class="inline-block mt-2 text-sm sm:text-base font-extrabold text-amber-400">${formatCurrency(prod.price)}</span>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            <button onclick="openProductModal('${prod.id}')" class="p-2.5 rounded-xl bg-[#242934] hover:bg-[#2f3542] text-amber-400 border border-[#363c4a] transition" title="Editar produto">
+                                <i data-lucide="pencil" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="confirmDeleteProduct('${prod.id}')" class="p-2.5 rounded-xl bg-red-950/60 hover:bg-red-900/70 text-red-300 border border-red-900/50 transition" title="Excluir produto">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="bg-[#161920] hover:bg-[#1a1e26] rounded-2xl p-4 border border-[#2a2f3a] flex items-center justify-between gap-3.5 transition shadow-sm">
+                    <div class="min-w-0 flex-1">
+                        <h3 class="font-bold text-gray-100 text-sm sm:text-base leading-snug">${prod.name}</h3>
+                        ${prod.desc ? `<p class="text-xs text-gray-400 line-clamp-2 mt-1 leading-relaxed">${prod.desc}</p>` : ''}
+                        <span class="inline-block mt-2.5 text-base font-extrabold text-amber-400">${formatCurrency(prod.price)}</span>
+                    </div>
+
+                    <div class="shrink-0">
+                        ${qty === 0 ? `
+                            <button onclick="addToCart('${prod.id}')" class="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-[#242934] hover:bg-amber-500 text-amber-400 hover:text-stone-950 font-extrabold text-xs sm:text-sm border border-[#363c4a] hover:border-amber-500 transition shadow-sm">
+                                <i data-lucide="plus" class="w-4 h-4"></i>
+                                <span>Adicionar</span>
+                            </button>
+                        ` : `
+                            <div class="flex items-center gap-2 bg-[#12141a] border border-amber-500/50 px-2 py-1.5 rounded-xl shadow">
+                                <button onclick="removeFromCart('${prod.id}')" class="p-1.5 hover:bg-[#242934] rounded-lg text-gray-300 transition">
+                                    <i data-lucide="minus" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <span class="font-extrabold text-sm min-w-[20px] text-center text-white">${qty}</span>
+                                <button onclick="addToCart('${prod.id}')" class="p-1.5 hover:bg-[#242934] rounded-lg text-amber-400 transition">
+                                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
+                        `}
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // CARRINHO / COMANDA DO CLIENTE
+        // ==========================================
+        function addToCart(productId) {
+            cart[productId] = (cart[productId] || 0) + 1;
+            updateCartUI();
+            renderMenu();
+        }
+
+        function removeFromCart(productId) {
+            if (!cart[productId]) return;
+            cart[productId]--;
+            if (cart[productId] <= 0) {
+                delete cart[productId];
+            }
+            updateCartUI();
+            renderMenu();
+            if (!document.getElementById('cart-modal').classList.contains('hidden')) {
+                renderCartModalItems();
+            }
+        }
+
+        // ==========================================
+        // CRUD DE PRODUTOS, LOGO E DADOS DA LOJA (MODO EDITOR)
+        // ==========================================
+        function openProductModal(productId = null) {
+            const modal = document.getElementById('product-modal');
+            const title = document.getElementById('product-modal-title');
+            const idInput = document.getElementById('prod-id');
+            const nameInput = document.getElementById('prod-name');
+            const priceInput = document.getElementById('prod-price');
+            const catInput = document.getElementById('prod-category');
+            const descInput = document.getElementById('prod-desc');
+
+            if (productId) {
+                const prod = products.find(p => p.id === productId);
+                if (!prod) return;
+                title.textContent = 'Editar Produto';
+                idInput.value = prod.id;
+                nameInput.value = prod.name;
+                priceInput.value = prod.price;
+                catInput.value = prod.category;
+                descInput.value = prod.desc || '';
+            } else {
+                title.textContent = 'Novo Produto';
+                idInput.value = '';
+                nameInput.value = '';
+                priceInput.value = '';
+                catInput.value = activeCategory !== 'all' ? activeCategory : CATEGORIES[0].id;
+                descInput.value = '';
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeProductModal() {
+            document.getElementById('product-modal').classList.add('hidden');
+        }
+
+        function saveProduct(event) {
+            event.preventDefault();
+            const id = document.getElementById('prod-id').value;
+            const name = document.getElementById('prod-name').value.trim();
+            const price = parseFloat(document.getElementById('prod-price').value);
+            const category = document.getElementById('prod-category').value;
+            const desc = document.getElementById('prod-desc').value.trim();
+
+            if (!name || isNaN(price) || price < 0) {
+                showToast('Preencha o nome e um preço válido.', 'error');
+                return;
+            }
+
+            if (id) {
+                const idx = products.findIndex(p => p.id === id);
+                if (idx !== -1) {
+                    products[idx] = { ...products[idx], name, price, category, desc };
+                    showToast('Produto atualizado!');
+                }
+            } else {
+                products.unshift({
+                    id: 'prod_' + Date.now(),
+                    name,
+                    price,
+                    category,
+                    desc
+                });
+                showToast('Novo produto adicionado!');
+            }
+
+            saveProductsToStorage();
+            closeProductModal();
+            renderMenu();
+        }
+
+        function confirmDeleteProduct(productId) {
+            const prod = products.find(p => p.id === productId);
+            if (!prod) return;
+
+            document.getElementById('confirm-title').textContent = 'Excluir Produto?';
+            document.getElementById('confirm-message').textContent = `Tem certeza que deseja remover "${prod.name}" do cardápio?`;
+            document.getElementById('confirm-action-btn').onclick = () => {
+                products = products.filter(p => p.id !== productId);
+                delete cart[productId];
+                saveProductsToStorage();
+                updateCartUI();
+                renderMenu();
+                closeConfirmModal();
+                showToast('Produto removido.');
+            };
+            document.getElementById('confirm-modal').classList.remove('hidden');
+        }
+
+        function openResetModal() {
+            document.getElementById('confirm-title').textContent = 'Restaurar Cardápio Padrão?';
+            document.getElementById('confirm-message').textContent = 'Isso substituirá suas alterações atuais pelos 76 itens originais do Ponto Final.';
+            document.getElementById('confirm-action-btn').onclick = () => {
+                products = [...DEFAULT_PRODUCTS];
+                cart = {};
+                saveProductsToStorage();
+                updateCartUI();
+                renderMenu();
+                closeConfirmModal();
+                showToast('Cardápio restaurado para o padrão!');
+            };
+            document.getElementById('confirm-modal').classList.remove('hidden');
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirm-modal').classList.add('hidden');
+        }
+
+        function openStoreNameModal() {
+            document.getElementById('input-store-name').value = storeInfo.name || '';
+            document.getElementById('input-store-subtitle').value = storeInfo.subtitle || '';
+            document.getElementById('store-modal').classList.remove('hidden');
+        }
+
+        function closeStoreNameModal() {
+            document.getElementById('store-modal').classList.add('hidden');
+        }
+
+        function saveStoreInfo(event) {
+            event.preventDefault();
+            storeInfo.name = document.getElementById('input-store-name').value.trim() || 'Ponto Final';
+            storeInfo.subtitle = document.getElementById('input-store-subtitle').value.trim();
+            saveStoreToStorage();
+            renderStoreInfo();
+            closeStoreNameModal();
+            showToast('Dados do estabelecimento atualizados!');
+        }
+
+        function openLogoModal() {
+            const preview = document.getElementById('logo-preview-box');
+            const removeBtn = document.getElementById('remove-logo-btn');
+            if (storeInfo.logoBase64) {
+                preview.innerHTML = `<img src="${storeInfo.logoBase64}" alt="Preview Logo" class="w-full h-full object-cover">`;
+                removeBtn.classList.remove('hidden');
+            } else {
+                preview.innerHTML = `<i data-lucide="flame" class="w-12 h-12 text-stone-950"></i>`;
+                removeBtn.classList.add('hidden');
+            }
+            document.getElementById('logo-modal').classList.remove('hidden');
+            if (window.lucide) lucide.createIcons({ nodes: [preview] });
+        }
+
+        function closeLogoModal() {
+            document.getElementById('logo-modal').classList.add('hidden');
+        }
+
+        function handleLogoUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    // Redimensionar imagem para economizar espaço no localStorage
+                    const canvas = document.createElement('canvas');
+                    const maxSize = 256;
+                    let w = img.width;
+                    let h = img.height;
+                    if (w > h) {
+                        if (w > maxSize) { h *= maxSize / w; w = maxSize; }
+                    } else {
+                        if (h > maxSize) { w *= maxSize / h; h = maxSize; }
+                    }
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+
+                    storeInfo.logoBase64 = canvas.toDataURL('image/png', 0.85);
+                    saveStoreToStorage();
+                    renderStoreInfo();
+                    openLogoModal();
+                    showToast('Logo atualizada com sucesso!');
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeStoreLogo() {
+            storeInfo.logoBase64 = null;
+            saveStoreToStorage();
+            renderStoreInfo();
+            openLogoModal();
+            showToast('Logo removida.');
+        }
+
+        // ==========================================
+        // FORMATAÇÃO E UTILITÁRIOS
+        // ==========================================
+        function formatCurrency(value) {
+            return Number(value).toLocaleString('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            });
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgClass = type === 'error'
+                ? 'bg-red-950 text-red-100 border border-red-700'
+                : 'bg-[#1a1d24] text-gray-100 border border-amber-500/40';
+            const iconName = type === 'error' ? 'alert-circle' : 'check-circle-2';
+            const iconColor = type === 'error' ? 'text-red-400' : 'text-amber-400';
+
+            toast.className = `${bgClass} px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 text-sm font-medium animate-slide-up pointer-events-auto`;
+            toast.innerHTML = `
+                <i data-lucide="${iconName}" class="w-4 h-4 ${iconColor} shrink-0"></i>
+                <span>${message}</span>
+            `;
+            container.appendChild(toast);
+            lucide.createIcons({ nodes: [toast] });
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-10px)';
+                toast.style.transition = 'all 0.2s ease';
+                setTimeout(() => toast.remove(), 200);
+            }, 3000);
+        }
+
+        // ==========================================
+        // ATALHO OCULTO E BLOQUEIO POR SENHA
+        // ==========================================
+        function handleSecretTrigger() {
+            if (isEditMode) return;
+            secretClickCount++;
+            clearTimeout(secretClickTimer);
+            secretClickTimer = setTimeout(() => {
+                secretClickCount = 0;
+            }, 1500);
+
+            if (secretClickCount >= 5) {
+                secretClickCount = 0;
+                openAuthModal();
+            }
+        }
+
+        function setupKeyboardShortcut() {
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && e.shiftKey && (e.key === 'E' || e.key === 'e')) {
+                    e.preventDefault();
+                    if (!isEditMode) {
+                        openAuthModal();
+                    }
+                }
+            });
+        }
+
+        function openAuthModal() {
+            const modal = document.getElementById('auth-modal');
+            const input = document.getElementById('admin-pass-input');
+            input.value = '';
+            modal.classList.remove('hidden');
+            setTimeout(() => input.focus(), 50);
+        }
+
+        function closeAuthModal() {
+            document.getElementById('auth-modal').classList.add('hidden');
+        }
+
+        function verifyAdminPassword(event) {
+            event.preventDefault();
+            const typed = document.getElementById('admin-pass-input').value;
+            if (typed === adminPassword) {
+                closeAuthModal();
+                unlockEditMode();
+            } else {
+                showToast('Senha incorreta!', 'error');
+                document.getElementById('admin-pass-input').value = '';
+                document.getElementById('admin-pass-input').focus();
+            }
+        }
+
+        function unlockEditMode() {
+            isEditMode = true;
+            document.getElementById('admin-toolbar').classList.remove('hidden');
+            document.getElementById('edit-store-name-btn').classList.remove('hidden');
+            document.getElementById('cart-floating-bar').classList.add('hidden');
+            document.getElementById('current-pass-hint').textContent = adminPassword;
+            showToast('Modo Editor desbloqueado!');
+            renderMenu();
+            lucide.createIcons();
+        }
+
+        function lockEditMode() {
+            isEditMode = false;
+            document.getElementById('admin-toolbar').classList.add('hidden');
+            document.getElementById('edit-store-name-btn').classList.add('hidden');
+            updateCartUI();
+            renderMenu();
+            showToast('Modo Editor bloqueado. Voltou para visão do cliente.');
+            lucide.createIcons();
+        }
+
+        function openPasswordModal() {
+            document.getElementById('new-admin-pass').value = adminPassword;
+            document.getElementById('password-modal').classList.remove('hidden');
+        }
+
+        function closePasswordModal() {
+            document.getElementById('password-modal').classList.add('hidden');
+        }
+
+        function saveNewPassword(event) {
+            event.preventDefault();
+            const newPass = document.getElementById('new-admin-pass').value.trim();
+            if (newPass.length < 3) {
+                showToast('A senha deve ter pelo menos 3 caracteres.', 'error');
+                return;
+            }
+            adminPassword = newPass;
+            localStorage.setItem(STORAGE_KEY_PASS, adminPassword);
+            document.getElementById('current-pass-hint').textContent = adminPassword;
+            closePasswordModal();
+            showToast('Senha de administrador atualizada!');
+        }
+
+        function openCloudSyncModal() {
+            document.getElementById('cardapio-firebase-url').value = localStorage.getItem(FIREBASE_URL_KEY) || '';
+            document.getElementById('cloud-sync-modal').classList.remove('hidden');
+        }
+
+        function closeCloudSyncModal() {
+            document.getElementById('cloud-sync-modal').classList.add('hidden');
+        }
+
+        function saveCardapioFirebaseUrl(event) {
+            event.preventDefault();
+            const url = document.getElementById('cardapio-firebase-url').value.trim().replace(/\/+$/, '');
+            if (url) {
+                localStorage.setItem(FIREBASE_URL_KEY, url);
+                showToast('Cardápio conectado ao Painel da Cozinha!');
+            }
+            closeCloudSyncModal();
+        }
+
+        function clearCardapioFirebaseUrl() {
+            localStorage.removeItem(FIREBASE_URL_KEY);
+            closeCloudSyncModal();
+            showToast('Conexão em nuvem removida.');
+        }
+
+        async function dispatchOrderToKitchen(newOrder) {
+            // 1. Salvar no localStorage compartilhado (mesmo dispositivo/navegador)
+            try {
+                const existingRaw = localStorage.getItem(ORDERS_STORAGE_KEY);
+                const existingOrders = existingRaw ? JSON.parse(existingRaw) : [];
+                existingOrders.unshift(newOrder);
+                localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(existingOrders));
+            } catch (e) {
+                console.warn('Erro ao salvar pedido localmente:', e);
+            }
+
+            // 2. Notificar aba do Painel KDS via BroadcastChannel
+            if (ordersChannel) {
+                ordersChannel.postMessage({ type: 'NEW_ORDER', order: newOrder });
+            }
+
+            // 3. Enviar para Firebase Realtime Database (se configurado)
+            const fbUrl = localStorage.getItem(FIREBASE_URL_KEY);
+            if (fbUrl) {
+                try {
+                    await fetch(`${fbUrl}/orders/${newOrder.id}.json`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(newOrder)
+                    });
+                } catch (err) {
+                    console.warn('Erro ao enviar pedido para Firebase:', err);
+                }
+            }
+        }
+
+        function getCartTotals() {
+            let totalItems = 0;
+            let totalPrice = 0;
+            const items = [];
+
+            for (const [id, qty] of Object.entries(cart)) {
+                const prod = products.find(p => p.id === id);
+                if (prod && qty > 0) {
+                    totalItems += qty;
+                    const subtotal = prod.price * qty;
+                    totalPrice += subtotal;
+                    items.push({ ...prod, qty, subtotal });
+                }
+            }
+            return { totalItems, totalPrice, items };
+        }
+
+        function updateCartUI() {
+            const { totalItems, totalPrice } = getCartTotals();
+            const bar = document.getElementById('cart-floating-bar');
+            const badge = document.getElementById('cart-badge-count');
+            const barTotal = document.getElementById('cart-bar-total');
+
+            badge.textContent = totalItems;
+            barTotal.textContent = formatCurrency(totalPrice);
+
+            if (totalItems > 0 && !isEditMode) {
+                bar.classList.remove('hidden');
+            } else {
+                bar.classList.add('hidden');
+            }
+        }
+
+        function openCartModal() {
+            renderCartModalItems();
+            document.getElementById('cart-modal').classList.remove('hidden');
+        }
+
+        function closeCartModal() {
+            document.getElementById('cart-modal').classList.add('hidden');
+        }
+
+        function renderCartModalItems() {
+            const { items, totalPrice } = getCartTotals();
+            const listContainer = document.getElementById('cart-items-list');
+            document.getElementById('cart-modal-total').textContent = formatCurrency(totalPrice);
+
+            if (items.length === 0) {
+                closeCartModal();
+                return;
+            }
+
+            listContainer.innerHTML = items.map(item => `
+                <div class="flex items-center justify-between gap-3 bg-[#12141a] p-3 rounded-2xl border border-[#2a2f3a]">
+                    <div class="min-w-0 flex-1">
+                        <h4 class="font-bold text-gray-100 text-sm truncate">${item.name}</h4>
+                        <span class="text-xs font-semibold text-amber-400">${formatCurrency(item.price)} cada</span>
+                    </div>
+                    <div class="flex items-center gap-2 bg-[#1a1d24] border border-[#2a2f3a] px-2 py-1 rounded-xl">
+                        <button onclick="removeFromCart('${item.id}')" class="p-1 hover:bg-[#262b36] rounded-lg text-gray-300">
+                            <i data-lucide="minus" class="w-3.5 h-3.5"></i>
+                        </button>
+                        <span class="font-bold text-sm min-w-[18px] text-center text-white">${item.qty}</span>
+                        <button onclick="addToCart('${item.id}'); renderCartModalItems();" class="p-1 hover:bg-[#262b36] rounded-lg text-amber-400">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                    <div class="text-right font-extrabold text-sm text-white min-w-[68px]">
+                        ${formatCurrency(item.subtotal)}
+                    </div>
+                </div>
+            `).join('');
+
+            lucide.createIcons({ nodes: [listContainer] });
+        }
+
+        function finalizeInPersonOrder() {
+            const { items, totalPrice } = getCartTotals();
+            if (items.length === 0) return;
+
+            const location = document.getElementById('order-location').value;
+            const customerName = document.getElementById('order-customer-name').value.trim();
+            const notes = document.getElementById('order-notes').value.trim();
+
+            // Preencher ticket presencial
+            document.getElementById('ticket-location').textContent = location;
+            
+            const custBox = document.getElementById('ticket-customer-box');
+            if (customerName) {
+                document.getElementById('ticket-customer').textContent = customerName;
+                custBox.classList.remove('hidden');
+            } else {
+                custBox.classList.add('hidden');
+            }
+
+            const notesBox = document.getElementById('ticket-notes-box');
+            if (notes) {
+                document.getElementById('ticket-notes').textContent = notes;
+                notesBox.classList.remove('hidden');
+            } else {
+                notesBox.classList.add('hidden');
+            }
+
+            document.getElementById('ticket-items').innerHTML = items.map(item => `
+                <div class="flex items-center justify-between gap-2 text-gray-200">
+                    <span><strong class="text-amber-400">${item.qty}x</strong> ${item.name}</span>
+                    <span class="font-bold text-gray-300 shrink-0">${formatCurrency(item.subtotal)}</span>
+                </div>
+            `).join('');
+
+            document.getElementById('ticket-total').textContent = formatCurrency(totalPrice);
+
+            // Montar texto para cópia rápida
+            let summary = `COMANDA - ${storeInfo.name.toUpperCase()}\n`;
+            summary += `Local: ${location}\n`;
+            if (customerName) summary += `Cliente: ${customerName}\n`;
+            summary += `------------------------------\n`;
+            items.forEach(i => {
+                summary += `${i.qty}x ${i.name} - ${formatCurrency(i.subtotal)}\n`;
+            });
+            summary += `------------------------------\n`;
+            if (notes) summary += `Obs: ${notes}\n`;
+            summary += `TOTAL: ${formatCurrency(totalPrice)}`;
+            lastConfirmedTicketText = summary;
+
+            // Enviar pedido automaticamente para o Painel da Cozinha (KDS)
+            const structuredOrder = {
+                id: 'ord_' + Date.now(),
+                number: Math.floor(100 + Math.random() * 900),
+                location: location,
+                customer: customerName,
+                notes: notes,
+                items: items.map(i => ({ name: i.name, qty: i.qty, price: i.price })),
+                total: totalPrice,
+                status: 'pending',
+                createdAt: Date.now()
+            };
+            dispatchOrderToKitchen(structuredOrder);
+
+            closeCartModal();
+            document.getElementById('order-ticket-modal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function copyTicketSummary() {
+            if (!lastConfirmedTicketText) return;
+            const textarea = document.createElement('textarea');
+            textarea.value = lastConfirmedTicketText;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showToast('Comanda copiada!');
+            } catch (err) {
+                showToast('Erro ao copiar comanda.', 'error');
+            }
+            document.body.removeChild(textarea);
+        }
+
+        function startNewOrder() {
+            cart = {};
+            document.getElementById('order-notes').value = '';
+            document.getElementById('order-customer-name').value = '';
+            document.getElementById('order-ticket-modal').classList.add('hidden');
+            updateCartUI();
+            renderMenu();
+            showToast('Pronto para um novo pedido!');
+        }
+
+        // Iniciar aplicação ao carregar janela
+        window.onload = initApp;
+    </script>
+</body>
+</html>
